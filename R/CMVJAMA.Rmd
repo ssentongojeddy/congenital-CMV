@@ -1,0 +1,718 @@
+---
+title: "Congenital CMV: Meta-analysis"
+output: html_notebook
+---
+
+
+# LOAD REQUIRED PACKAGES AND FUNCTIONS -----------------------------------------
+```{r, message=FALSE}
+library(olsrr) # linear regression
+library(tidyverse) # general stuff
+library(hrbrthemes) # pretty plots
+library(ggplot2) # pretty plots
+library(plotly) # interactive plots
+library(gapminder) # interactive plots
+library(pastecs) # stat.desc
+library(metafor) # for meta-analysis: mixed-effects logistic and Poisson regression models
+library(meta) # meta-regression, GLMM, forest plots,(subgroup) meta-analyses.
+library(sp) # spatial data
+library(rgdal) #  projection/transformation operations for shapefiles
+library(sf) # Simple Features for R
+library(rnaturalearth)
+library(tmap) # cool maps
+library(ggpubr) # 'ggplot2' Based Publication Ready Plots
+library(ggpmisc) #Miscellaneous Extensions to 'ggplot2'
+library(spData)
+library(cowplot)# plot grid
+library(ggsci)
+library(RColorBrewer)
+library(ggrepel)
+library(readxl)
+```
+
+
+# read data -----------------------------------------
+```{r}
+rm(list=ls())
+#dat1=read.csv("Main.csv")
+dat1=read_xls("JJ_Main.xls")
+```
+
+# Pooled analysis: All -----------------------------------------
+```{r}
+
+l1=is.na(dat1$Positive)
+dat=dat1[!l1,]
+
+```
+
+
+# Meta-analysis using GLMM -----------------------------------------
+```{r}
+m1 <- metaprop(Positive, Tested, data = dat, studlab = paste(Author, year_publication, Country,  sep = ", "), pscale = 100, 
+               comb.fixed = F, method.ci = "CP",
+               #method.tau = "DL", method = "Inverse",sm = "PFT")
+               method.tau = "ML", method = "GLMM",sm = "PLOGIT")
+
+```
+
+
+#Influence analysis  using leave-one-out -----------------------------------------
+```{r}
+pdf("JAMA/figs/InfluencialPlots.pdf", width = 10, height = 20)
+forest(metainf(m1, pooled = "random"))
+dev.off()
+
+inf=metainf(m1, pooled = "random")
+summary(inf)
+```
+
+
+# trim and fill : Prevalence -----------------------------------------
+
+
+
+```{r}
+tf2 <- trimfill(m1)
+summary(tf2)
+pdf("JAMA/figs/Trimmed.pdf", width = 10, height = 10)
+funnel(tf2)
+dev.off()
+funnel(tf2, pch = ifelse(tf2$trimfill, 1, 16),
+       level = 0.9, comb.random = T,backtransf = T)
+#
+```
+
+
+
+
+# Funnel plots : Prevalence -----------------------------------------
+```{r}
+
+pdf("JAMA/figs/FunnelPlotFinal.pdf", width = 10, height = 10)
+funnel(m1,xlab = "log transformed proportions",studlab = F)
+dev.off()
+
+metabias(m1, method="linreg")
+metabias(m1, method="rank")
+```
+
+
+
+
+
+# Plot figure 2: WHO Region
+```{r fig.height=13, fig.width=8, echo=FALSE,warning=FALSE}
+mw<- update(m1, byvar=WHO_regionP,print.byvar=F)
+#pdf("JAMA/figs/RegionJAMA_GLMM.pdf", width = 15, height = 20)
+forest(mw,
+       leftlabs = c("Author, Year of publication, Country", "CMV+", "Number tested"),
+       digits = 2,
+       col.by="black",
+       sortvar = year_publication,
+       squaresize=0.5,
+       col.square="blue",
+       col.diamond="maroon",
+       col.diamond.lines="maroon",
+       xlab="Birth Prevalence of Congenital CMV(%)",
+       print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       xlim = c(0, 7), at = c(0,2,4, 7),pscale = 100,
+       backtransf = T)
+#dev.off()
+
+```
+
+
+
+# Plot figure 3: World Bank Income group
+```{r,fig.height=8, fig.width=8, echo=FALSE,warning=FALSE}
+mi<- update(m1, byvar=Income,print.byvar=F)
+pdf("JAMA/figs/IncomeJAMA_Fig2.pdf", width = 10, height = 20)
+forest(mi,
+       leftlabs = c("Author, Year of publication, Country", "CMV+", "Number tested"),
+       digits = 2,
+       col.by="black",
+       sortvar = year_publication,
+       squaresize=0.5,
+       col.square="blue",
+       col.diamond="maroon",
+       col.diamond.lines="maroon",
+       xlab="Birth Prevalence of Congenital CMV(%)",
+       print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       xlim = c(0, 8), at = c(0,2,4,6,8),pscale = 100,
+       backtransf = T)
+dev.off()
+
+```
+
+
+# Plot figure 4: Biological specimen 1
+```{r}
+mi<- update(m1, byvar=dat$Specimen_Screening,print.byvar=F)
+pdf("JAMA/figs/SpecimenJAMA.pdf", width = 10, height = 22)
+forest(mi,
+       leftlabs = c("Author, Year of publication, Country", "CMV+", "Number tested"),
+       digits = 2,
+       col.by="black",
+       sortvar = year_publication,
+       squaresize=0.5,
+       col.square="blue",
+       col.diamond="maroon",
+       col.diamond.lines="maroon",
+       xlab="Birth Prevalence of Congenital CMV(%)",
+       print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       xlim = c(0, 8), at = c(0,2,4,6,8),pscale = 100,
+       backtransf = T)
+dev.off()
+
+```
+
+
+
+
+# Plot figure 4: Biological specimen 2
+```{r}
+mi<- update(m1, byvar=dat$Specimen_Screening2,print.byvar=F)
+pdf("JAMA/figs/Specimen2JAMA.pdf", width = 10, height = 20)
+forest(mi,
+       leftlabs = c("Author, Year of publication, Country", "CMV+", "Number tested"),
+       digits = 2,
+       col.by="black",
+       sortvar = year_publication,
+       squaresize=0.5,
+       col.square="blue",
+       col.diamond="maroon",
+       col.diamond.lines="maroon",
+       xlab="Birth Prevalence of Congenital CMV(%)",
+       print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       xlim = c(0, 8), at = c(0,2,4,6,8),pscale = 100,
+       backtransf = T)
+dev.off()
+
+```
+
+
+
+```{r,fig.height=8, fig.width=8, echo=FALSE,warning=FALSE}
+l2=is.na(dat1$CM_Sympt)
+dat2=dat1[!l2,]
+
+
+m2 <- metaprop(CM_Sympt, Positive, data = dat2, studlab = paste(Author, year_publication, Country,  sep = ", "), pscale = 100, 
+               comb.fixed = F, method.ci = "CP",
+               #method.tau = "DL", method = "Inverse",sm = "PFT")
+               method.tau = "ML", method = "GLMM",sm = "PLOGIT")
+
+mis<- update(m2, byvar=Income,print.byvar=F)
+pdf("JAMA/figs/Symptomatic_IncomeJAMA_Fig3.pdf", width = 14, height = 17)
+forest(mis,
+       leftlabs = c("Author, Year of publication, Country", "CMV+", "Numbers tested"),
+       digits = 2,
+       col.by="black",
+       sortvar = year_publication,
+       squaresize=0.5,
+       col.square="blue",
+       col.diamond="maroon",
+       col.diamond.lines="maroon",
+       xlab="Birth Prevalence of Congenital CMV(%)",
+       print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       xlim = c(0, 100), at = c(0,20,40,60,80, 100),pscale = 100,
+       backtransf = T)
+dev.off()
+
+```
+
+
+
+# meta-regression
+
+```{r regions}
+
+# Use glmm straight for year of study
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ relevel(factor(WHO_regionP), ref="Americas-US and Canada"), dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+```
+
+
+```{r income}
+
+# Use glmm straight for year of study
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ relevel(factor(Income), ref="HIC"), dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+### calculate proportions and corresponding sampling variances
+dat3 <- escalc(measure="PLO", xi=Positive, ni=Tested,data=dat)
+### mixed-effects meta-regression model 
+res <- rma(yi, vi, mods = ~ Income, data=dat3)
+print(res, digits=3)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+
+
+```{r seroprevalence}
+dat$IgM=dat$IgG_maternal/5
+
+
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ IgM, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+### calculate proportions and corresponding sampling variances
+dat3 <- escalc(measure="PLO", xi=Positive, ni=Tested,data=dat)
+### mixed-effects meta-regression model 
+res <- rma(yi, vi, mods = ~ IgM, data=dat3)
+print(res, digits=3)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+```{r race}
+dat$Black=dat$African_American_perc/5
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ Black, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+### calculate proportions and corresponding sampling variances
+dat3 <- escalc(measure="PLO", xi=Positive, ni=Tested,data=dat)
+### mixed-effects meta-regression model 
+res <- rma(yi, vi, mods = ~ Black, data=dat3)
+print(res, digits=3)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+```{r mother age}
+dat$Age_Mother=dat$Age_maternal_y-28
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ Age_Mother, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+dat3 <- escalc(measure="PLO", xi=Positive, ni=Tested,data=dat)
+### mixed-effects meta-regression model 
+res <- rma(yi, vi, mods = ~ Age_Mother, data=dat3)
+print(res, digits=4)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+```{r perc male}
+dat$Male=dat$Male_per/5
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ Male, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+```{r methodological quality}
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ Score, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+dat3 <- escalc(measure="PLO", xi=Positive, ni=Tested,data=dat)
+### mixed-effects meta-regression model 
+res <- rma(yi, vi, mods = ~ Score, data=dat3)
+print(res, digits=4)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+
+```{r HIVMeta}
+dat$HIV=dat$HIV_pop_perc/2
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ HIV, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+```{r year}
+dat$YEAR=dat$Study_Year/5
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ YEAR, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+```{r PREMATURE}
+dat$Preterm=dat$Premature_perc/5
+model_A <- rma.glmm( xi=Positive, ni=Tested, measure="PLO",  mods = ~ Preterm, dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+```{r specimen}
+
+# Use glmm straight for year of study
+model_A <- rma.glmm(xi=Positive, ni=Tested, measure="PLO",  mods = ~ relevel(factor(Specimen_Screening2), ref="Urine or Saliva"),dat=dat)
+print(model_A,digits=3)
+model_A 
+round(exp(coef(summary(model_A))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+### calculate proportions and corresponding sampling variances
+dat3 <- escalc(measure="PLN", xi=Positive, ni=Tested,data=dat, method="DL")
+### mixed-effects meta-regression model 
+res <- rma(yi, vi,mods = ~ relevel(factor(Specimen_Screening2), ref="Urine or Saliva"),dat=dat3)
+print(res, digits=3)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+```
+
+
+
+```{r r-squared}
+
+### calculate proportions and corresponding sampling variances
+dat3 <- escalc(measure="PLN", xi=Positive, ni=Tested,data=dat, method="DL")
+### mixed-effects meta-regression model 
+res <- rma(yi, vi, mods = ~ dat$IgG_maternal, data=dat3)
+print(res, digits=3)
+round(exp(coef(summary(res))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+```
+
+
+
+
+```{r}
+table(dat$Income)
+table(dat$WHO_regionP2)
+table(dat$Specimen_Screening2)
+dat$Country
+
+
+# misc
+df=group_by(dat, Income) %>%
+  summarise(
+    count = n(),
+    ScoreMean = mean(Score, na.rm = TRUE),
+    PopSum = sum(Tested, na.rm = TRUE),
+    Median = median(Score, na.rm = TRUE),
+    MedianScore2 = median(Score, na.rm = TRUE),
+    IQR = IQR(Score, na.rm = TRUE),
+    sd = sd(Score, na.rm = TRUE)
+  )
+
+df
+
+
+# misc
+df=group_by(dat) %>%
+  summarise(
+    count = n(),
+    ScoreMean = mean(Score, na.rm = TRUE),
+    PopSum = sum(Tested, na.rm = TRUE),
+    Median = median(Score, na.rm = TRUE),
+    MeanAge = mean(Age_maternal_y, na.rm = TRUE),
+    MedianScore2 = median(Score, na.rm = TRUE),
+    IQR = IQR(Score, na.rm = TRUE),
+    sd = sd(Score, na.rm = TRUE)
+  )
+
+df
+
+sum(dat$Tested)
+
+```
+
+
+
+
+```{r}
+table(dat$WHO_regionP2, dat$Country)
+summary(dat$Tested)
+summary(dat$IgG_maternal)
+
+```
+
+
+```{r sero}
+# linear trend + confidence interval
+
+pr=ggplot(data=dat, aes(y=Prev, x=IgG_maternal, label=Country)) +
+  #geom_point(alpha=0.8,size=10, shape=23) +
+  #geom_point(aes(fill = WHO_regionP2),shape = 21,alpha=0.3, size=Tested) +
+  geom_point(aes(col= WHO_regionP2, size=Tested)) + 
+   geom_text_repel()+
+  scale_color_jama()+
+   scale_size(range = c(1, 50)) +
+   scale_color_manual(name = "WHO Region", 
+                    labels=c("Africa", "EMR","Europe", "Americas-Latin","SEAR", "Americas-US/CAN","WPR"),values = c("red", "green", "blue","grey","orange","pink","magenta"),na.translate =F)+
+    geom_smooth(method=lm , color="black", se=F) +
+  scale_x_continuous(limits = c(40, 100))+
+    #facet_wrap(~factor(Income), scales = "free_x") +
+ # theme_ipsum()+
+  theme_bw()+
+  theme(legend.position='', 
+        legend.justification='center',
+        legend.direction='horizontal')
+
+pr=pr+stat_fit_glance(method = 'lm',
+       method.args = list(formula = y ~ x),  geom = 'text', 
+       aes(label = paste("p=", signif(..p.value.., digits = 2), 
+                      "   R-squared=", signif(..r.squared.., digits = 2), sep = "")),
+       label.x = 50, label.y = 5, size = 6)
+
+
+pr=pr+ xlab("Maternal CMV seroprevalence (%)")+
+  ylab("Prevalence of cCMV (%)")+
+  theme(
+    axis.title.x=element_text(angle=0, color='black',face = "bold",size = 30),
+    axis.title.y=element_text(angle=90, color='black', face='bold', size=30),
+    axis.text.x = element_text(face="bold", color="black",size=30, angle=0),
+    axis.text.y = element_text(face="bold", color="black", size=30, angle=0),
+    legend.text = element_text(colour="black", size=14,face="bold"),
+    legend.title = element_text(colour="black", size=14,face="bold"))
+
+
+pr
+
+ggsave(pr, file = "JAMA/figs/Seroprevalence.png", width = 15, height = 10, type =
+        "cairo-png")
+ggsave("JAMA/figs/Seroprevalence.tiff", plot = pr, width=600, height=450, units="mm", dpi=300)
+ggsave("JAMA/figs/Seroprevalence.tiff", plot = pr, width=15, height=10)
+
+
+```
+
+
+```{r HIVplot}
+# linear trend + confidence interval
+formula <- y ~ x
+
+h=ggplot(data=dat, aes(y=Prev, x=HIV_pop_perc, label=Country)) +
+  #geom_point(alpha=0.8) +
+  #geom_point(aes(fill = WHO_regionP2),shape = 21,alpha=0.3, size=Tested) +
+  geom_point(aes(col= WHO_regionP2,alpha=0.6, size=Tested)) + 
+   geom_text_repel()+
+  scale_color_jama()+
+   scale_size(range = c(1, 65))+
+ scale_color_manual(name = "WHO Region", 
+                    labels=c("Africa", "EMR","Europe", "Americas-Latin","SEAR", "Americas-US/CAN","WPR"),values = c("red", "green", "blue","grey","orange","pink","magenta"),na.translate =F)+
+    geom_smooth(method=lm , color="black", se=F) +
+  scale_x_continuous(limits = c(0, 20))+
+    #facet_wrap(~factor(Income), scales = "free_x") +
+ # theme_ipsum()+
+  theme_bw()+
+  theme(legend.position='none', 
+        legend.justification='center',
+        legend.direction='vertical')
+
+
+
+h=h+stat_fit_glance(method = 'lm',
+       method.args = list(formula = y ~ x),  geom = 'text', 
+       aes(label = paste("p=", signif(..p.value.., digits = 2), 
+                      "   R-squared=", signif(..r.squared.., digits = 2), sep = "")),
+       label.x = 5, label.y = 4, size = 5,face="bold")
+
+h=h+ xlab("Country-level HIV prevalence (%)")+
+  ylab("Prevalence of cCMV (%)")+
+  theme(
+    axis.title.x=element_text(angle=0, color='black',face = "bold",size = 25),
+    axis.title.y=element_text(angle=90, color='black', face='bold', size=25),
+    axis.text.x = element_text(face="bold", color="black",size=25, angle=0),
+    axis.text.y = element_text(face="bold", color="black", size=25, angle=0),
+    legend.text = element_text(colour="black", size=14,face="bold"),
+    legend.title = element_text(colour="black", size=14,face="bold"))
+
+
+h
+
+ggsave(h, file = "JAMA/figs/HIV.png", width = 15, height = 10, type =
+        "cairo-png")
+
+ggsave("JAMA/figs/HIV.tiff", plot = h, width=15, height=10)
+
+```
+
+
+
+
+
+
+```{r time}
+# linear trend + confidence interval
+formula <- y ~ x
+
+y=ggplot(data=dat, aes(y=Prev, x=Study_Year, label=Country)) +
+  #geom_point(alpha=0.8,size=10, shape=23) +
+  #geom_point(aes(fill = WHO_regionP2),shape = 21,alpha=0.3, size=Tested) +
+  geom_point(aes(col= WHO_regionP2, size=Tested)) + 
+   geom_text_repel()+
+  scale_color_jama()+
+  scale_size(range = c(1, 50)) +
+  scale_color_manual(name = "WHO Region", 
+                    labels=c("Africa", "EMR","Europe", "Americas-Latin","SEAR", "Americas-US/CAN","WPR"),values = c("red", "green", "blue","grey","orange","pink","magenta"),na.translate =F)+
+  geom_smooth(method=lm , color="black", se=F) +
+  # geom_smooth(method=lm,se=F,fill="#69b3a2") +
+ scale_x_continuous(limits = c(1960, 2020))+
+    #facet_wrap(~factor(Income), scales = "free_x") +
+ # theme_ipsum()+
+  theme_bw()+
+  theme(legend.position='bottom', 
+        legend.justification='center',
+        legend.box = "horizontal",
+        legend.direction='horizontal')
+
+y=y+stat_fit_glance(method = 'lm',
+       method.args = list(formula = y ~ x),  geom = 'text', 
+       aes(label = paste("p=", signif(..p.value.., digits = 2), 
+                      "   R-squared=", signif(..r.squared.., digits = 2), sep = "")),
+       label.x = 1970, label.y = 5, size = 6)
+
+
+y=y+ xlab("Calendar year of study")+
+  ylab("Prevalence of cCMV (%)")+
+  theme(
+    axis.title.x=element_text(angle=0, color='black',face = "bold",size = 25),
+    axis.title.y=element_text(angle=90, color='black', face='bold', size=25),
+    axis.text.x = element_text(face="bold", color="black",size=25, angle=0),
+    axis.text.y = element_text(face="bold", color="black", size=25, angle=0),
+    legend.text = element_text(colour="black", size=12,face="bold"),
+    legend.title = element_text(colour="black", size=12,face="bold"))
+
+
+y
+
+ggsave(y, file = "JAMA/figs/time.png", width = 15, height = 10, type =
+        "cairo-png")
+
+ggsave("JAMA/figs/time.tiff", plot = y, width=600, height=450, units="mm", dpi=300)
+
+```
+
+
+
+
+
+```{r}
+library(cowplot)
+pp=plot_grid(pr,y, 
+            labels = c("A", "B"),
+            ncol = 1, nrow = 2)
+
+
+
+save_plot("JAMA/figs/PanelFigure4.pdf", pp, base_height = 20, base_width = 13)
+
+```
+
+
+
+
+```{r}
+df=group_by(dat, Country) %>%
+  summarise(
+    count = n(),
+    MeanRate = mean(Prev, na.rm = TRUE),
+    SumTested = sum(Tested, na.rm = TRUE),
+    Scoremedian = median(dat$Score, na.rm = TRUE)
+  )
+table(df$Country)
+df
+
+
+dff=group_by(dat, dat$WHO_regionP2) %>%
+  summarise(
+    count = n(),
+    MeanRate = mean(Prev, na.rm = TRUE),
+     SumTested = sum(Tested, na.rm = TRUE),
+    Scoremedian = median(dat$Score, na.rm = TRUE)
+  )
+
+dff
+
+```
+
+# display maps
+
+```{r map stunt}
+
+
+df=group_by(dat, Country) %>%
+  summarise(
+    count = n(),
+    MeanRate = mean(Prev, na.rm = TRUE),
+    SumTested = sum(Tested, na.rm = TRUE),
+    Scoremedian = median(dat$Score, na.rm = TRUE)
+  )
+table(df$Country)
+df
+
+
+
+WorldData <- map_data('world')
+WorldData %>% filter(region != "Antarctica") -> WorldData
+WorldData <- fortify(WorldData)
+
+p <- ggplot()
+p <- p + geom_map(data=WorldData, map=WorldData,
+                  aes(x=long, y=lat, group=group, map_id=region),
+                  fill="white", colour="#7f7f7f", size=0.5)
+p <- p + geom_map(data=df, map=WorldData,
+                  aes(fill=MeanRate, map_id=Country),
+                  colour="#7f7f7f", size=0.5)
+p <- p + coord_map("rectangular", lat0=0, xlim=c(-180,180), ylim=c(-60, 90))
+#p <- p + scale_fill_continuous(low="thistle2", high="darkred", guide="colorbar")
+p <-p+ scale_fill_distiller(palette = "Spectral")
+
+p <- p + scale_y_continuous(breaks=c())
+p <- p + scale_x_continuous(breaks=c())
+p <- p + labs(fill="Congenital CMV\n prevalence (%)", title="", x="", y="")
+p <- p + theme_bw()
+p <- p + theme(panel.border = element_blank())
+
+par(mai=c(0,0,0.2,0),xaxs="i",yaxs="i")
+p 
+
+```
+
+
+```{r}
+
+table(WorldData$region)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
