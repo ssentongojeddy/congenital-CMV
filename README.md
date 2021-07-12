@@ -1,2 +1,2 @@
 # congenital-CMV
-Code to reproduce analysis and figure report in the manuscript
+This is the R Code and data to reproduce the results and figures reported in the manuscript published in JAMA Network Open.
